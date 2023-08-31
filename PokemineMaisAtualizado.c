@@ -188,8 +188,9 @@ int toupeiraNoLugar(TOUPEIRA toupeiras [], JOGADOR jogador, int toupeirasNaRodad
     Verifica se a posicao para qual o jogador tentou se deslocar eh uma posicao valida
     ou nao, comparando com o mapa
 */
-void PodeAndar(JOGADOR* jogador, char mapaAuxiliar[][LARGURAMAPA], TOUPEIRA toupeiras [], int toupeirasNaRodada){
+void PodeAndar(JOGADOR* jogador, char mapaAuxiliar[][LARGURAMAPA], TOUPEIRA toupeiras [], int toupeirasNaRodada, Sound esmeralda, Sound moeda){
     int x, y;
+
     x = jogador->posicaoAtual.x + jogador->deslocamento.x; // Verifica qual o local para qual o player quer se movimentar
     y = jogador->posicaoAtual.y + jogador->deslocamento.y;
 
@@ -199,11 +200,13 @@ void PodeAndar(JOGADOR* jogador, char mapaAuxiliar[][LARGURAMAPA], TOUPEIRA toup
         if(mapaAuxiliar[y][x] == 'O'){ // ouro
             mapaAuxiliar[y][x] = ' ';
             jogador->pontos+= 50;
+            PlaySound(moeda);
         }
         else if(mapaAuxiliar[y][x] == 'E'){ // esmeralda
             mapaAuxiliar[y][x] = ' ';
             jogador->esmeraldas--;
             jogador->pontos+= 100;
+            PlaySound(esmeralda);
         }
         else if(mapaAuxiliar[y][x] == 'A'){ // powerup
             mapaAuxiliar[y][x] = ' ';
@@ -287,7 +290,7 @@ int leEstado(JOGADOR *jogador, TOUPEIRA toupeiras [], char nomeArquivo[], int To
     Verifica se alguma tecla foi pressionada e chama a funcao PodeAndar pra permitir
     o deslocamento
 */
-void MovimentoJogador(JOGADOR* jogador, char mapaAuxiliar[][LARGURAMAPA], TOUPEIRA toupeiras [], int toupeirasNaRodada){
+void MovimentoJogador(JOGADOR* jogador, char mapaAuxiliar[][LARGURAMAPA], TOUPEIRA toupeiras [], int toupeirasNaRodada, Sound esmeralda, Sound moeda){
     if(IsKeyPressed(KEY_RIGHT)){
         jogador->deslocamento.x += 1;
         jogador->direcaoAtual = 1; // direita
@@ -304,7 +307,7 @@ void MovimentoJogador(JOGADOR* jogador, char mapaAuxiliar[][LARGURAMAPA], TOUPEI
         jogador->deslocamento.y += 1;
         jogador->direcaoAtual = 4; // baixo
     }
-    PodeAndar(jogador, mapaAuxiliar, toupeiras, toupeirasNaRodada);
+    PodeAndar(jogador, mapaAuxiliar, toupeiras, toupeirasNaRodada, esmeralda, moeda);
 }
 
 /*
@@ -407,8 +410,7 @@ void MoveTiro(JOGADOR jogador, TIRO* tiro, char mapaAuxiliar[][LARGURAMAPA],int 
                     tiro->umTiroPorVez = 0;
                     matouToupeira = 1;
                     *pontos+= 200;
-                    if(!IsSoundPlaying(bidoof))
-                        PlaySound(bidoof);
+                    PlaySound(bidoof);
                 }
             }
             if(matouToupeira != 1){
@@ -715,10 +717,10 @@ int MenuPrincipal(JOGADOR* jogador, Texture2D* titulo, Sound musicaTitulo){
     float scaleWidth = (float)GetScreenWidth() / titulo->width;
     float scaleHeight = (float)GetScreenHeight() / titulo->height;
 
-    float scale = (scaleWidth < scaleHeight) ? scaleWidth : scaleHeight;
+    float escala = (scaleWidth < scaleHeight) ? scaleWidth : scaleHeight;
 
-    int imageWidth = (int)(titulo->width * scale);
-    int imageHeight = (int)(titulo->height * scale);
+    int imageWidth = (int)(titulo->width * escala);
+    int imageHeight = (int)(titulo->height * escala);
 
     Vector2 posFundo;
     posFundo.x = (GetScreenWidth() - imageWidth) / 2;
@@ -728,7 +730,7 @@ int MenuPrincipal(JOGADOR* jogador, Texture2D* titulo, Sound musicaTitulo){
 
     ClearBackground(RAYWHITE);
 
-    DrawTextureEx(*titulo, posFundo, 0, scale, WHITE);
+    DrawTextureEx(*titulo, posFundo, 0, escala, WHITE);
 
     if (IsKeyPressed(KEY_Q)) {
         Q = 1;
@@ -788,6 +790,7 @@ int main(){
     // Mapa auxiliar para save do jogo
     char mapaAuxiliar [ALTURAMAPA][LARGURAMAPA];
     //
+    Vector2 posFlash;
     Camera2D camera;
     // Toupeiras presentes no mapa atual e velocidade dos objetos
     int toupeirasNaRodada, velocidade, temporizadorPowerUp, Q = 1;
@@ -830,9 +833,13 @@ int main(){
     Sound somAmbiente = LoadSound("Sons/MusicaMapa1.mp3");
     Sound derrotaMus = LoadSound("Sons/musicaderrota.mp3");
     Sound ataque = LoadSound("Sons/squirtleAtaque.mp3");
+    Sound esmeralda = LoadSound("Sons/esmeraldaSom.mp3");
+    Sound moeda = LoadSound("Sons/moeda.mp3");
+    Sound umaVida = LoadSound("Sons/1vida.mp3");
     //
     Texture2D derrota = LoadTexture("Texturas/ImagemFim.png");
     Texture2D titulo = LoadTexture("Texturas/titulo.png");
+    Texture2D flash = LoadTexture("Texturas/flash.png");
     while(!WindowShouldClose() && Q == 1 && jogador.sairJogo != 1)
         Q = MenuPrincipal(&jogador, &titulo, musicaTitulo);
     //
@@ -862,15 +869,19 @@ int main(){
                 //--------------------------------------------------------------------------------
                 MostraPontos(camera, jogador);
                 //---------------------------------------------------------------------------
-                MovimentoJogador(&jogador, mapaAuxiliar, toupeiras, toupeirasNaRodada);// Cuida da movimentacao do jogador
-                //--------------------------------------------------------------------------
+                MovimentoJogador(&jogador, mapaAuxiliar, toupeiras, toupeirasNaRodada, esmeralda, moeda);// Cuida da movimentacao do jogador
+                //---------------------------------------------------------------------------
 
-                nevoa.x = jogador.posicaoAtual.x;
-                nevoa.y = jogador.posicaoAtual.y;
-                DrawCircle(nevoa.x, nevoa.y, GetScreenHeight()/3, CLITERAL(Color){ 0, 0, 0, 0 });
+                if(jogador.vidas!= 1){
+                    if(!IsSoundPlaying(somAmbiente))
+                        PlaySound(somAmbiente);
+                }
+                else{
+                    StopSound(somAmbiente);
+                    if(!IsSoundPlaying(umaVida))
+                        PlaySound(umaVida);
+                }
 
-                if(!IsSoundPlaying(somAmbiente))
-                    PlaySound(somAmbiente);
                 AtualizaCamera(jogador, &camera);
                 //-------------------------------------------------------------------------------------------
                 if(velocidade%(SEGUNDO/2) == 0) //
@@ -892,6 +903,9 @@ int main(){
 
                 //----------------------------------------------
                 if(jogador.powerUp == 1){
+                    posFlash.x = camera.target.x - flash.width * 0.05;;
+                    posFlash.y = camera.target.y + flash.height/10;
+                    DrawTextureEx(flash, posFlash, 0, 0.1, WHITE);
                     temporizadorPowerUp++;
                     camera.zoom = 5.5;
                     if(temporizadorPowerUp == SEGUNDO*3){
@@ -979,10 +993,10 @@ int main(){
             PlaySound(derrotaMus);
 
         Vector2 posicao;
-        posicao.x = centroX - (derrota.width / 2); // Assuming "derrota" is your texture
+        posicao.x = centroX - (derrota.width / 2); //
         posicao.y = centroY - (derrota.height / 2);
 
-        // Draw the texture centered on the screen
+        //
         DrawTextureEx(derrota, posicao, 0, 1, WHITE);
         DrawText(TextFormat("PONTOS: %d",jogador.pontos),posicao.x+600, posicao.y+600, 40, WHITE);
         EndDrawing();
