@@ -12,7 +12,7 @@
 #define SEGUNDO 60
 #define POSICAOMAPA 20
 #define ESCALA 0.835
-#define IMAGENSTOTAL 19
+#define IMAGENSTOTAL 25
 
 typedef struct Vetor2{
     int x;
@@ -44,6 +44,7 @@ typedef struct Jogador{
     int jogoPausado;
     int sairJogo;
     int primeiraVezRodadando;
+    int perdeu;
 }JOGADOR;
 
 /* Tipo toupeira
@@ -72,23 +73,26 @@ TOUPEIRA IniciaToupeira(int x, int y){
 }
 
 
-void GanhouOJogo(){
-    float posX = LARGURAJANELA/2;
-    float posY = ALTURAJANELA/2 - 100;
-    int tamanhoTitulo = 30;
+void GanhouOJogo(JOGADOR jogador){
+    Sound vitoriaMus = LoadSound("Sons/vitoria.mp3");
+    Texture2D vitoria = LoadTexture("Texturas/vitoria.png");
+    printf("oi");
     while(!WindowShouldClose()){
-        //------------------------------------------
-        BeginDrawing();       // Comeca o desenho
-        //------------------------------------------
-        //-------------------------------------------------------------
-        ClearBackground(RAYWHITE); //Limpa o desenho do frame anterior
-        //-------------------------------------------------------------
-        char titulo[30] = "PARABENS!";
-        DrawRectangle(POSICAOMAPA, POSICAOMAPA, 600, 400, CLITERAL(Color){ 160, 130, 255, 128 });
-        DrawText(titulo, posX - (MeasureText(titulo, tamanhoTitulo)/2) , posY - POSICAOMAPA, tamanhoTitulo, WHITE);
-        //------------------------------------------
-        EndDrawing();   //   Termina o desenho
-        //------------------------------------------
+        BeginDrawing();
+        int centroX = GetScreenWidth() / 2;
+        int centroY = GetScreenHeight() / 2;
+        ClearBackground(BLACK);
+        if(!IsSoundPlaying(vitoriaMus))
+            PlaySound(vitoriaMus);
+
+        Vector2 posicao;
+        posicao.x = centroX - (vitoria.width ); //
+        posicao.y = centroY - (vitoria.height);
+
+
+        DrawTextureEx(vitoria, posicao, 0, 2, WHITE);
+        DrawText(TextFormat("PONTOS: %d",jogador.pontos),posicao.x+600, posicao.y+600, 40, WHITE);
+        EndDrawing();
     }
 
     //--------------------------------------------------------------------------------------
@@ -101,7 +105,7 @@ void GanhouOJogo(){
     Percorre o mapa desejado e atribui a todos os objetos suas posicoes atuais baseando-se
     no mapa. Alem disso, confere a fase atual e carrega o mapa desejado e faz uma copia para o mapa auxiliar, para que ele possa ser atualizado e modificado
 */
-int IniciaRodada(Vetor2* posInicial,Vetor2* posicaoAtual, TOUPEIRA toupeiras[], char mapaAuxiliar[][LARGURAMAPA], int* esmeraldas, int mapaAtual, Camera2D* camera){
+int IniciaRodada(Vetor2* posInicial,Vetor2* posicaoAtual, TOUPEIRA toupeiras[], char mapaAuxiliar[][LARGURAMAPA], int* esmeraldas, int mapaAtual, Camera2D* camera, JOGADOR jogador){
     FILE *arq;
     int i,j, toupeirasAtualmente = 0;
     char c, numeroMapa[1], mapaDaRodada [50] = {'\0'};
@@ -111,7 +115,7 @@ int IniciaRodada(Vetor2* posInicial,Vetor2* posicaoAtual, TOUPEIRA toupeiras[], 
     strcat(mapaDaRodada, numeroMapa);
     strcat(mapaDaRodada, ".txt");
     if(!(arq = fopen(mapaDaRodada,"r")))
-        GanhouOJogo();
+        GanhouOJogo(jogador);
     else{
         for (i = 0; i < ALTURAMAPA;i++){
             for(j = 0; j < LARGURAMAPA+1;j++){
@@ -148,6 +152,9 @@ int IniciaRodada(Vetor2* posInicial,Vetor2* posicaoAtual, TOUPEIRA toupeiras[], 
 int jogadorPerdeVida(JOGADOR* jogador, char mapaAuxiliar[][LARGURAMAPA], TOUPEIRA toupeiras [], int toupeirasNaRodada){
     int i, j;
     int vidas = jogador->vidas;
+    Sound dano = LoadSound("Sons/squirtleDano.mp3");
+    if(!IsSoundPlaying(dano))
+        PlaySound(dano);
     jogador->vidas--;
     if (jogador->vidas == 0)
         jogador->sairJogo = 1;
@@ -191,11 +198,12 @@ void PodeAndar(JOGADOR* jogador, char mapaAuxiliar[][LARGURAMAPA], TOUPEIRA toup
         jogador->posicaoAtual.y = y;
         if(mapaAuxiliar[y][x] == 'O'){ // ouro
             mapaAuxiliar[y][x] = ' ';
-            jogador->pontos++;
+            jogador->pontos+= 50;
         }
         else if(mapaAuxiliar[y][x] == 'E'){ // esmeralda
             mapaAuxiliar[y][x] = ' ';
             jogador->esmeraldas--;
+            jogador->pontos+= 100;
         }
         else if(mapaAuxiliar[y][x] == 'A'){ // powerup
             mapaAuxiliar[y][x] = ' ';
@@ -358,7 +366,7 @@ void TirosJogador(JOGADOR jogador, TIRO* tiro){
     }
 }
 
-void MoveTiro(JOGADOR jogador, TIRO* tiro, char mapaAuxiliar[][LARGURAMAPA],int toupeirasNaRodada, TOUPEIRA toupeiras []){
+void MoveTiro(JOGADOR jogador, TIRO* tiro, char mapaAuxiliar[][LARGURAMAPA],int toupeirasNaRodada, TOUPEIRA toupeiras [], int* pontos, Sound bidoof){
     int x, y, yExtra = 0, xExtra = 0, i, matouToupeira = 0;
     if(jogador.tiro.umTiroPorVez == 1){ // Se existe um tiro no mapa
         x = jogador.tiro.posicaoAtual.x;
@@ -398,6 +406,9 @@ void MoveTiro(JOGADOR jogador, TIRO* tiro, char mapaAuxiliar[][LARGURAMAPA],int 
                     toupeiras[i].posicaoAtual.y = 0;
                     tiro->umTiroPorVez = 0;
                     matouToupeira = 1;
+                    *pontos+= 200;
+                    if(!IsSoundPlaying(bidoof))
+                        PlaySound(bidoof);
                 }
             }
             if(matouToupeira != 1){
@@ -438,15 +449,12 @@ void DesenhaMapa(char mapaAuxiliar[][LARGURAMAPA], JOGADOR jogador, TOUPEIRA tou
 
     Vector2 pos;
     //Desenha a grama de fora
-    for(i = 0; i < ALTURAMAPA+8; i++){
-        for(j = 0; j < LARGURAJANELA+16; j++){
-            pos.x = j*ARESTA + POSICAOMAPA - 120;
-            pos.y = i*ARESTA + POSICAOMAPA - 60;
+    for(i = 0; i < ALTURAMAPA+10; i++){
+        for(j = 0; j < LARGURAJANELA+18; j++){
+            pos.x = j*ARESTA + POSICAOMAPA - 160;
+            pos.y = i*ARESTA + POSICAOMAPA - 80;
             if(NevoaDestruicao(jogador, pos.x/20-1, pos.y/20-1, mapaAuxiliar)){
-                if(i < 3 || i > 20)
-                    DrawTextureEx(imagensMapa[0].imagem, pos, 0, ESCALA, WHITE);
-                if(j < 6 || j > 30)
-                    DrawTextureEx(imagensMapa[0].imagem, pos, 0, ESCALA, WHITE);
+                DrawTextureEx(imagensMapa[0].imagem, pos, 0, ESCALA, WHITE);
             }
             else{
                 DrawTextureEx(imagensMapa[0].imagem, pos, 0, ESCALA, WHITE);
@@ -609,11 +617,23 @@ void DesenhaMapa(char mapaAuxiliar[][LARGURAMAPA], JOGADOR jogador, TOUPEIRA tou
     //
 
     // Desenha o tiro
-    if(jogador.tiro.umTiroPorVez == 1)
-        if(jogador.tiro.direcaoAtual == 1 || jogador.tiro.direcaoAtual == 2) // Verifica a direcao do tiro
-            DrawRectangle(jogador.tiro.posicaoAtual.x*ARESTA + POSICAOMAPA, jogador.tiro.posicaoAtual.y*ARESTA + POSICAOMAPA + ARESTA/4 ,ARESTA/2, ARESTA/4, PINK);
-        else
-            DrawRectangle(jogador.tiro.posicaoAtual.x*ARESTA + POSICAOMAPA + ARESTA/4, jogador.tiro.posicaoAtual.y*ARESTA + POSICAOMAPA,ARESTA/4, ARESTA/2, PINK);
+    if(jogador.tiro.umTiroPorVez == 1){
+
+        switch(jogador.tiro.direcaoAtual){
+            case 1:
+                DrawRectangle(jogador.tiro.posicaoAtual.x*ARESTA + POSICAOMAPA + 15, jogador.tiro.posicaoAtual.y*ARESTA + POSICAOMAPA + ARESTA/4 ,ARESTA/2, ARESTA/4, SKYBLUE);
+                break;
+            case 2:
+                DrawRectangle(jogador.tiro.posicaoAtual.x*ARESTA + POSICAOMAPA - 10, jogador.tiro.posicaoAtual.y*ARESTA + POSICAOMAPA + ARESTA/4 ,ARESTA/2, ARESTA/4, SKYBLUE);
+                break;
+            case 3:
+                DrawRectangle(jogador.tiro.posicaoAtual.x*ARESTA + POSICAOMAPA + ARESTA/4, jogador.tiro.posicaoAtual.y*ARESTA + POSICAOMAPA - 10,ARESTA/4, ARESTA/2, SKYBLUE);
+                break;
+            case 4:
+                DrawRectangle(jogador.tiro.posicaoAtual.x*ARESTA + POSICAOMAPA + ARESTA/4, jogador.tiro.posicaoAtual.y*ARESTA + POSICAOMAPA + 10,ARESTA/4, ARESTA/2, SKYBLUE);
+                break;
+        }
+    }
     //
 
     // Desenha toupeiras
@@ -626,8 +646,18 @@ void DesenhaMapa(char mapaAuxiliar[][LARGURAMAPA], JOGADOR jogador, TOUPEIRA tou
             posTop.x = toupeiraX*ARESTA + POSICAOMAPA;
             posTop.y = toupeiraY*ARESTA + POSICAOMAPA;
             if(NevoaDestruicao(jogador, toupeiraX, toupeiraY, mapaAuxiliar)){
-                if(mapaAuxiliar[toupeiraY][toupeiraX] != 'S' || jogador.powerUp == 1)
-                    DrawTextureEx(imagensMapa[5].imagem, posTop, 0, ESCALA, WHITE);
+                if(mapaAuxiliar[toupeiraY][toupeiraX] != 'S' || jogador.powerUp == 1){
+                    if(toupeiras[i].direcaoAtual == 0) //direita
+                        DrawTextureEx(imagensMapa[19].imagem, posTop, 0, ESCALA, WHITE);
+                    else if(toupeiras[i].direcaoAtual == 1) // esquerda
+                        DrawTextureEx(imagensMapa[20].imagem, posTop, 0, ESCALA, WHITE);
+                    else if(toupeiras[i].direcaoAtual == 2) // cima
+                        DrawTextureEx(imagensMapa[23].imagem, posTop, 0, ESCALA, WHITE);
+                    else if(toupeiras[i].direcaoAtual == 3) // baixo
+                        DrawTextureEx(imagensMapa[22].imagem, posTop, 0, ESCALA, WHITE);
+                }
+
+
                 else
                     DrawTextureEx(imagensMapa[11].imagem, posTop, 0, ESCALA, WHITE);
             }
@@ -656,9 +686,9 @@ int RodadaTerminou(JOGADOR jogador){
 }
 
 int DesenhaMenu(char mapaAuxiliar[][LARGURAMAPA], JOGADOR jogador, TOUPEIRA toupeiras[], int toupeirasNoMapa, IMAGENS imagensMapa [], Camera2D camera){
-    float posX = LARGURAJANELA/2;
-    float posY = ALTURAJANELA/2 - 100;
-    int tamanhoLetra = 20;
+    float posX = camera.target.x;
+    float posY = camera.target.y;
+    int tamanhoLetra = 10;
     int tamanhoTitulo = 30;
     char titulo[30] = "JOGO PAUSADO";
     char n[30] = "(N)Novo Jogo";
@@ -667,13 +697,16 @@ int DesenhaMenu(char mapaAuxiliar[][LARGURAMAPA], JOGADOR jogador, TOUPEIRA toup
     char q[30] = "(Q)Sair do Jogo";
     char v[30] = "(V)Voltar";
     DesenhaMapa(mapaAuxiliar, jogador, toupeiras, toupeirasNoMapa, imagensMapa);
-    DrawRectangle(POSICAOMAPA, POSICAOMAPA, 1000, 1000, CLITERAL(Color){ 160, 255, 255, 128 });
-    DrawText(titulo, posX - (MeasureText(titulo, tamanhoTitulo)/2) , posY - POSICAOMAPA*1.5, tamanhoTitulo, RED);
-    DrawText(n, posX - (MeasureText(n, tamanhoLetra)/2) , posY - POSICAOMAPA, tamanhoLetra, BLACK);
-    DrawText(c, posX - (MeasureText(c, tamanhoLetra)/2), posY - POSICAOMAPA/2, tamanhoLetra, BLACK);
-    DrawText(s, posX - (MeasureText(s, tamanhoLetra)/2), posY, tamanhoLetra, BLACK);
-    DrawText(q, posX - (MeasureText(q, tamanhoLetra)/2), posY + POSICAOMAPA/2, tamanhoLetra, BLACK);
-    DrawText(v, posX - (MeasureText(v, tamanhoLetra)/2), posY + POSICAOMAPA, tamanhoLetra, BLACK);
+    if(jogador.powerUp == 1)
+        DrawRectangle(camera.target.x - camera.offset.x, camera.target.y- camera.offset.y, 5000, 5000, CLITERAL(Color){ 160, 255, 255, 128 });
+    else
+        DrawRectangle(camera.target.x - camera.offset.x/6, camera.target.y -camera.offset.y/6, 1000, 1000, CLITERAL(Color){ 160, 255, 255, 128 });
+    DrawText(titulo, posX - (MeasureText(titulo, tamanhoTitulo)/2) , posY - camera.offset.y/8, tamanhoTitulo, RED);
+    DrawText(n, posX - (MeasureText(n, tamanhoLetra)/2) , posY - camera.offset.y/18, tamanhoLetra, BLACK);
+    DrawText(c, posX - (MeasureText(c, tamanhoLetra)/2), posY - camera.offset.y/40, tamanhoLetra, BLACK);
+    DrawText(s, posX - (MeasureText(s, tamanhoLetra)/2), posY , tamanhoLetra, BLACK);
+    DrawText(q, posX - (MeasureText(q, tamanhoLetra)/2), posY + camera.offset.y/40, tamanhoLetra, BLACK);
+    DrawText(v, posX - (MeasureText(v, tamanhoLetra)/2), posY + camera.offset.y/10, tamanhoLetra, BLACK);
 }
 
 int MenuPrincipal(JOGADOR* jogador, Texture2D* titulo, Sound musicaTitulo){
@@ -716,10 +749,11 @@ int MenuPrincipal(JOGADOR* jogador, Texture2D* titulo, Sound musicaTitulo){
 }
 
 void MostraPontos(Camera2D camera, JOGADOR jogador){
-    int tamanhoLetra = 12;
-    DrawText(TextFormat("%dF",(jogador.mapaAtual+1)),camera.target.x-(GetScreenHeight()/12), camera.target.y-(GetScreenWidth()/22), tamanhoLetra, RED);
-    DrawText(TextFormat("HP %d/3",jogador.vidas),camera.target.x-(GetScreenHeight()/16), camera.target.y-(GetScreenWidth()/22), tamanhoLetra, RED);
+    int tamanhoLetra = 7;
+    DrawText(TextFormat("%dF",(jogador.mapaAtual+1)),camera.target.x-(GetScreenHeight()/8), camera.target.y-(GetScreenWidth()/22), tamanhoLetra, RED);
+    DrawText(TextFormat("HP %d/3",jogador.vidas),camera.target.x-(GetScreenHeight()/12), camera.target.y-(GetScreenWidth()/22), tamanhoLetra, RED);
     DrawText(TextFormat("Apples: %d",jogador.esmeraldas),camera.target.x - 10, camera.target.y-(GetScreenWidth()/22), tamanhoLetra, RED);
+    DrawText(TextFormat("Score: %d",jogador.pontos),camera.target.x+ 60, camera.target.y-(GetScreenWidth()/22), tamanhoLetra, RED);
 }
 
 void AtualizaCamera(JOGADOR jogador, Camera2D* camera){
@@ -737,6 +771,18 @@ void CarregaImagens(IMAGENS imagens[]){
         imagens[i].imagem = LoadTexture(imagemAtual);
     }
 }
+
+
+void FadeIn(){
+    int i = 0;
+    while(i < 255){
+        BeginDrawing();
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), CLITERAL(Color){ 0, 0, 0, i });
+        i++;
+        EndDrawing();
+    }
+}
+
 
 int main(){
     // Mapa auxiliar para save do jogo
@@ -762,7 +808,7 @@ int main(){
     //
 
     //Inicia a janela do jogo
-    InitWindow(GetScreenWidth(), GetScreenHeight(), "MINEPEIRA");
+    InitWindow(GetScreenWidth(), GetScreenHeight(), "POKEMINE");
     //
     SetWindowIcon(LoadImage("Texturas/icone.png"));
     // Coloca o jogo para 60 FPS
@@ -778,9 +824,14 @@ int main(){
     jogador.primeiraVezRodadando = 0;
     //
     CarregaImagens(imagensMapa);
+
+    Sound bidoof = LoadSound("Sons/somBidoof.mp3");
     Sound musicaTitulo = LoadSound("Sons/MusicaTitulo.mp3");
     Sound somAmbiente = LoadSound("Sons/MusicaMapa1.mp3");
+    Sound derrotaMus = LoadSound("Sons/musicaderrota.mp3");
+    Sound ataque = LoadSound("Sons/squirtleAtaque.mp3");
     //
+    Texture2D derrota = LoadTexture("Texturas/ImagemFim.png");
     Texture2D titulo = LoadTexture("Texturas/titulo.png");
     while(!WindowShouldClose() && Q == 1 && jogador.sairJogo != 1)
         Q = MenuPrincipal(&jogador, &titulo, musicaTitulo);
@@ -791,7 +842,9 @@ int main(){
     while(!WindowShouldClose() && Q != 1 && jogador.sairJogo != 1){
     //
         if(RodadaTerminou(jogador)){
-            toupeirasNaRodada = IniciaRodada(&jogador.posInicial, &jogador.posicaoAtual, toupeiras, mapaAuxiliar, &jogador.esmeraldas, jogador.mapaAtual, &camera);
+            FadeIn();
+            StopSound(somAmbiente);
+            toupeirasNaRodada = IniciaRodada(&jogador.posInicial, &jogador.posicaoAtual, toupeiras, mapaAuxiliar, &jogador.esmeraldas, jogador.mapaAtual, &camera, jogador);
             velocidade = temporizadorPowerUp = 0;
         }
         else{
@@ -825,20 +878,26 @@ int main(){
                 //--------------------------------------------------------------------------------------------
 
                 //-----------------------------------------------------------------------------------
-                if (IsKeyPressed(KEY_G))// Se aperta espaco
+                if (IsKeyPressed(KEY_G)){// Se aperta G
+                    if(!IsSoundPlaying(ataque))
+                        PlaySound(ataque);
                     TirosJogador(jogador, &jogador.tiro); // Posiciona o tiro e verifica a direcao
+                }
                 //-----------------------------------------------------------------------------------
 
                 //---------------------------------------------------------------------------------------------------------------
-                if(velocidade%(SEGUNDO/12) == 0)// velocidade alta
-                    MoveTiro(jogador, &jogador.tiro, mapaAuxiliar, toupeirasNaRodada, toupeiras); // move o tiro e verifica colisoes, caso haja um tiro no mapa
+                if(velocidade%(SEGUNDO/30) == 0)// velocidade alta
+                    MoveTiro(jogador, &jogador.tiro, mapaAuxiliar, toupeirasNaRodada, toupeiras, &jogador.pontos, bidoof); // move o tiro e verifica colisoes, caso haja um tiro no mapa
                 //---------------------------------------------------------------------------------------------------------------
 
                 //----------------------------------------------
                 if(jogador.powerUp == 1){
                     temporizadorPowerUp++;
-                    if(temporizadorPowerUp == SEGUNDO*3)
+                    camera.zoom = 5.5;
+                    if(temporizadorPowerUp == SEGUNDO*3){
                         jogador.powerUp = temporizadorPowerUp = 0;
+                        camera.zoom = 6.0;
+                    }
                 }
 
                 //-----------------------------------------------
@@ -849,7 +908,6 @@ int main(){
 
                 if(IsKeyPressed(KEY_TAB))
                     jogador.jogoPausado = 1;
-
                 //------------------------------------------
                 EndDrawing();   //   Termina o desenho
                 //------------------------------------------
@@ -898,9 +956,10 @@ int main(){
                     jogador.pontos = 0;
                     jogador.esmeraldas = 0;
                     jogador.vidas = 3;
-                    toupeirasNaRodada = IniciaRodada(&jogador.posInicial, &jogador.posicaoAtual, toupeiras, mapaAuxiliar, &jogador.esmeraldas, jogador.mapaAtual, &camera);
+                    toupeirasNaRodada = IniciaRodada(&jogador.posInicial, &jogador.posicaoAtual, toupeiras, mapaAuxiliar, &jogador.esmeraldas, jogador.mapaAtual, &camera, jogador);
                 }
-                EndMode2D();
+                AtualizaCamera(jogador, &camera);
+
                 //------------------------------------------
                 EndDrawing();   //   Termina o desenho
                 //------------------------------------------
@@ -910,6 +969,24 @@ int main(){
 
         }
     }
+    StopSound(somAmbiente);
+    while (!WindowShouldClose() && jogador.vidas == 0) {
+        BeginDrawing();
+        int centroX = GetScreenWidth() / 2;
+        int centroY = GetScreenHeight() / 2;
+        ClearBackground(BLACK);
+        if(!IsSoundPlaying(derrotaMus))
+            PlaySound(derrotaMus);
+
+        Vector2 posicao;
+        posicao.x = centroX - (derrota.width / 2); // Assuming "derrota" is your texture
+        posicao.y = centroY - (derrota.height / 2);
+
+        // Draw the texture centered on the screen
+        DrawTextureEx(derrota, posicao, 0, 1, WHITE);
+        DrawText(TextFormat("PONTOS: %d",jogador.pontos),posicao.x+600, posicao.y+600, 40, WHITE);
+        EndDrawing();
+}
     CloseAudioDevice();
     //--------------------------------------------------------------------------------------
     CloseWindow();        // Termina o programa

@@ -1,0 +1,20 @@
+##############################
+######       SSSS          ###
+###### E   TSSS##   T    E  ##
+#####S      #######          #
+### SSSS  ##########SSSSS    #
+### SSTSSS##########OSSSSSSSS#
+##   SSSSO#########OOSSSSTSSS#
+# E   SS###########OSSSSSSSAS#
+#       ##########SSS     SS #
+#    SSS ########     E    ###
+#  TSSSS ######SSS   T    ####
+#  SOSS   #####SSSSS      ####
+# SOOS     #S     SS   #######
+######SS    SS   #############
+######SSSSSSS      ###########
+####   SSSSSS###      ASS    #
+####T SSSSSS ####      SS    #
+#      SSSSS#######  SSSS  J #
+#  E A TS  S#######  SOS     #
+##############################
