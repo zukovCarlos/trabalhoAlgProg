@@ -1,8 +1,6 @@
 # Trabalho Final da cadeira Algoritmos de Programação
 
-<p align="center">
-  <img src="data/ingameImage.png" alt="Gameplay" width="300" />
-</p>
+https://github.com/user-attachments/assets/95d3c397-2ff2-451d-8f2a-5a1e36ea1978
 
 ## Objetivo do projeto
 Implementação de um jogo chamado PacMine, baseado nas especificações definidas pelo professor
