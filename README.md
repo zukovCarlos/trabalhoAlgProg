@@ -9,5 +9,5 @@ Implementação de um jogo chamado PacMine, baseado nas especificações definid
 - Ponteiros
 - Manuseamento de arquivos
 - Lógica básica de programas
-  
+- Raylib
 
